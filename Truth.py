@@ -19,6 +19,7 @@ class Truth:
         Class for storing the chosen 'truth' solution for the wavelength calibration, defined over a given wavelength range. 
         The pre-loaded truth is based on the VLT MOONS solution between 1418 and 1835 nm, but should hold for all MOS instruments.
         Users can also input their own truths using truth_data. A Legendre polynomial fit will be found for this data, and the order of this polynomial is determined by fit_quality.
+        When using a user defined truth, wav_min and wav_max are ignored.
         
         Parameters
         ------------
@@ -27,7 +28,7 @@ class Truth:
         wav_max : float
             The maximum wavelength, in nanometres, which you want your calibration to cover. The default is for the MOONS data.
         truth_data : 2D array
-            The true wavelength calibration solution in the form [lambda (nm), pix]. If None, the pre-loaded solution is used.
+            The user defined true wavelength calibration solution in the form [lambda (nm), pix]. The default is None, meaning the pre-loaded solution is used.
         fit_quality : float
             The desired mean of the absolute residuals for the fit to a user defined truth, in pixels. The order of the polynomial will be increased until this is met. The default is 0.01 (1%).
         plot : bool
@@ -43,18 +44,67 @@ class Truth:
             
             # Load the MOONS Legendre fits. The wav2pix fit has a mean absolute residual <1% of a pixel, and maximum residual <5% of a pixel. 
             
+            # load wav2pix mapping - this is used later for spectrum creation
             with open('Truths/MOONS_wav2pix.pkl', 'rb') as f:
                 self.wav2pix = pickle.load(f)
-                
+            
+            # load pix2wav mapping - this is used to generate our truth data
             with open('Truths/MOONS_pix2wav.pkl', 'rb') as f:
                 pix2wav = pickle.load(f)
             
             # this is the hardcoded original number of pixels for the MOONS data
-            self.pix = np.arange(0,4096)
-            wav = pix2wav(self.pix)
+            pix = np.arange(0,4096)
+            # generate wavelength 'truth' data
+            wav = pix2wav(pix)
             
-            wav = wav[wav_min < wav]
-            self.wav = wav[wav < wav_max]
+            # crop pix and wav according to the min and max wavelengths
+            self.wav = wav[(wav_min < wav) & (wav < wav_max)]
+            inds = np.where((wav_min < wav) & (wav < wav_max))
+            self.pix = pix[inds]
+            
+        else:
+            # if user specifies their own truth, save this in the same format and generate wav2pix mapping
+            
+            self.wav = truth_data[0]
+            self.pix = truth_data[1]
+            
+            # we assume user has desired wavelengths already if using their own truth
+            
+            # generate legendre fit to truth, with order and quality specified by fit_quality
+            i = 1
+            while True:
+                
+                fit = Legendre.fit(self.wav,self.pix,deg=i)
+                y = fit(self.wav)
+                resids_mean = np.mean(abs(y-self.pix))
+                
+                if resids_mean < fit_quality:
+                    break
+                else:
+                    i += 1
+            
+            print('Fit condition met with polynomial of degree ' + str(i))
+            
+            self.wav2pix = fit
+            
+            print('Wavelength to pixel truth fit = ' + str(self.wav2pix))
+            
+        if plot is True:
+            
+            fig = plt.figure()
+            gs = fig.add_gridspec(2,1, hspace=0, height_ratios=[4,1])
+            axs = gs.subplots(sharex='col')
+            axs[1].set(xlabel='Wavelength (nm)', ylabel='Residual (pix)')
+            axs[0].set(ylabel = 'Pixel')
+            plt.suptitle('Truth Data')
+            axs[0].plot(self.wav,self.pix,label='Absolute Truth')
+            axs[0].plot(self.wav,self.wav2pix(self.wav),label='Truth Fit')
+            axs[0].legend()
+            resids =  self.wav2pix(self.wav)-self.pix
+            axs[1].plot(self.wav,resids,c='tab:green')
+            fig.tight_layout()
+            plt.show()
+            
         
             
             
