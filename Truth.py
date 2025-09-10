@@ -14,12 +14,12 @@ class Truth:
     
     def __init__(self, wav_min=1418, wav_max=1836, truth_data=None, fit_quality=0.01, plot=True):
         
-        """ Truth Object
+        """ Truth Class
         
         Class for storing the chosen 'truth' solution for the wavelength calibration, defined over a given wavelength range. 
         The pre-loaded truth is based on the VLT MOONS solution between 1418 and 1835 nm, but should hold for all MOS instruments.
         Users can also input their own truths using truth_data. A Legendre polynomial fit will be found for this data, and the order of this polynomial is determined by fit_quality.
-        When using a user defined truth, wav_min and wav_max are ignored.
+        When using a user defined truth, the inputs wav_min and wav_max are ignored. The code instead finds these limits from the truth data provided.
         
         Parameters
         ------------
@@ -39,6 +39,8 @@ class Truth:
         None
         
         """
+        
+        self.tag = 'truth'
         
         if truth_data is None:
             
@@ -62,6 +64,9 @@ class Truth:
             inds = np.where((wav_min < wav) & (wav < wav_max))
             self.pix = pix[inds]
             
+            self.wav_min = wav_min
+            self.wav_max = wav_max
+            
         else:
             # if user specifies their own truth, save this in the same format and generate wav2pix mapping
             
@@ -69,6 +74,8 @@ class Truth:
             self.pix = truth_data[1]
             
             # we assume user has desired wavelengths already if using their own truth
+            self.wav_min = self.wav[0]
+            self.wav_max = self.wav[-1]
             
             # generate legendre fit to truth, with order and quality specified by fit_quality
             i = 1

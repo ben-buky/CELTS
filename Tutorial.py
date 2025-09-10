@@ -6,6 +6,7 @@ Created on Wed Sep  3 15:41:14 2025
 """
 
 from Truth import Truth
+from Spectrum import Spectrum
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -21,5 +22,17 @@ truth2 = Truth(wav_min=1450, wav_max=1700)
 sample_truth = [truth.wav[:2000],truth.pix[:2000]]
 
 user_truth = Truth(truth_data=sample_truth,fit_quality=0.1) # mean residual of fit must be less than 10% of a pixel
+
+#%% Investigate the spectrum class
+
+# Use a Th-Ar lamp on the standard MOONS truth, with a low resolution so you see linewidth
+
+elements = ["th","ar"]
+spectrum = Spectrum(lines=elements, truth=truth, resolution=1000, sampling=3)
+
+# Use a Ur-Ne lamp on the standard MOONS truth with a set readout noise
+
+elements = ["u","ne"]
+spectrum = Spectrum(lines=elements, truth=truth, resolution=4000, sampling=3, readout_noise=4.5)
 
 
