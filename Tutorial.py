@@ -7,6 +7,7 @@ Created on Wed Sep  3 15:41:14 2025
 
 from Truth import Truth
 from Spectrum import Spectrum
+from Calibration import Calibration
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -28,11 +29,17 @@ user_truth = Truth(truth_data=sample_truth,fit_quality=0.1) # mean residual of f
 # Use a Th-Ar lamp on the standard MOONS truth, with a low resolution so you see linewidth
 
 elements = ["th","ar"]
-spectrum = Spectrum(lines=elements, truth=truth, resolution=1000, sampling=3)
+spectrum_th = Spectrum(lines=elements, truth=truth, resolution=1000, sampling=3)
 
 # Use a Ur-Ne lamp on the standard MOONS truth with a set readout noise
 
 elements = ["u","ne"]
-spectrum = Spectrum(lines=elements, truth=truth, resolution=4000, sampling=3, readout_noise=4.5)
+spectrum_u = Spectrum(lines=elements, truth=truth, resolution=4000, sampling=3, readout_noise=4.5)
+
+#%% Investigate Calibration class
+
+# Use standard MOONS truth and Th-Ar spectrum
+
+calibration = Calibration(truth=truth,spectrum=spectrum_th,orders=[4,5,6])
 
 

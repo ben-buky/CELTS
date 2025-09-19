@@ -40,6 +40,8 @@ class Spectrum:
             
         self.tag = 'spectrum'
         
+        self.global_scaling = global_scaling
+        
         # Create full line list object
         loc = 'Line_lists/'
         kr = io.ascii.read(loc + 'Kr.ascii')
@@ -64,6 +66,7 @@ class Spectrum:
                 
         selected_lines=table.vstack(selected)
         
+        # NOTE THIS!!
         # Need to work out how to scale lines to account for differences in relative intensity normalisation?
         
         # Filter the lines by intensity
@@ -136,32 +139,32 @@ class Spectrum:
         # Convert spectrum into realistic form
         
         # Rescale y axis
-        y_spec = global_scaling*self.ideal_spectrum
+        self.ideal_spectrum = self.global_scaling*self.ideal_spectrum # NEED TO LOOK INTO HOW I USE GLOBAL SCALING PROPERLY
 
         # Spectrum from instrument will have pixels as x axis, so use wav2pix fit to convert
-        line_pix = truth.wav2pix(pix_wl)
+        self.line_pix = truth.wav2pix(pix_wl)
 
         # Add noise
         
         # Photon noise
         if photon_noise is True:
-            phot = np.random.poisson(lam=y_spec) # SHOULD THIS BE ADDED TO SELF.SPECTRUM??
+            phot = np.random.poisson(lam=self.ideal_spectrum) # SHOULD THIS BE ADDED TO self.ideal_spectrum OR NOT??
         else:
-            phot = np.zeros(len(y_spec))
+            phot = np.zeros(len(self.ideal_spectrum))
             
         # Readout noise
-        readout = np.random.normal(0,readout_noise,y_spec.shape)
+        readout = np.random.normal(0,readout_noise,self.ideal_spectrum.shape)
         
         # New spectrum
-        noisy_data_full = phot+readout
+        noisy_data_full = self.ideal_spectrum + phot + readout
 
         # Interpolate so we have correct number of data points for pixels
-        self.calib_spec = np.interp(truth.pix,line_pix,noisy_data_full)
+        self.calib_spec = np.interp(truth.pix,self.line_pix,noisy_data_full)
         
         if plot is True:
             
             plt.figure(figsize=(10,5))
-            plt.plot(line_pix,y_spec,'--',label='Noiseless data', c='r')
+            plt.plot(self.line_pix,self.ideal_spectrum,'--',label='Noiseless data', c='r')
             plt.plot(truth.pix,self.calib_spec,label='Noisy data')
             plt.legend()
             plt.xlabel('Pixel')
