@@ -177,7 +177,7 @@ class Calibration:
                 axs[0].plot(truth.pix, truth.wav, label='Truth', c='orangered')
                 axs[0].scatter(self.points_pix, self.points_wav, label='Spectrum points', c='deepskyblue', marker='x')
                 axs[0].legend()
-                axs[1].set_yscale('log')
+                #axs[1].set_yscale('log')
                 plt.show()      
                 
                 # plot absolute mean of residuals

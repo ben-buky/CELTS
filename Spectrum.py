@@ -148,15 +148,15 @@ class Spectrum:
         
         # Photon noise
         if photon_noise is True:
-            phot = np.random.poisson(lam=self.ideal_spectrum) # SHOULD THIS BE ADDED TO self.ideal_spectrum OR NOT??
+            phot = np.random.poisson(lam=self.ideal_spectrum) 
         else:
-            phot = np.zeros(len(self.ideal_spectrum))
+            phot = self.ideal_spectrum
             
         # Readout noise
         readout = np.random.normal(0,readout_noise,self.ideal_spectrum.shape)
         
         # New spectrum
-        noisy_data_full = self.ideal_spectrum + phot + readout
+        noisy_data_full = phot + readout
 
         # Interpolate so we have correct number of data points for pixels
         self.calib_spec = np.interp(truth.pix,self.line_pix,noisy_data_full)

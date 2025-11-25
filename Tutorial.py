@@ -40,6 +40,6 @@ spectrum_u = Spectrum(lines=elements, truth=truth, resolution=4000, sampling=3, 
 
 # Use standard MOONS truth and Th-Ar spectrum
 
-calibration = Calibration(truth=truth,spectrum=spectrum_th,orders=[4,5,6])
+calibration = Calibration(truth=truth,spectrum=spectrum_th,orders=[3,4,5])
 
 
