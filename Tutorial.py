@@ -26,20 +26,28 @@ user_truth = Truth(truth_data=sample_truth,fit_quality=0.1) # mean residual of f
 
 #%% Investigate the spectrum class
 
-# Use a Th-Ar lamp on the standard MOONS truth, with a low resolution so you see linewidth
+# Use a Th-Ar lamp and a Ne lamp on the standard MOONS truth, with a low resolution so you see linewidth
 
-elements = ["th","ar"]
-spectrum_th = Spectrum(lines=elements, truth=truth, resolution=1000, sampling=3)
+spectrum_test = Spectrum(truth=truth, resolution=1000, sampling=3)
 
-# Use a Ur-Ne lamp on the standard MOONS truth with a set readout noise
+lamp_ne = spectrum_test.lamp_builder(lamp='Ne')
+lamp_thar = spectrum_test.lamp_builder(lamp='ThAr')
 
-elements = ["u","ne"]
-spectrum_u = Spectrum(lines=elements, truth=truth, resolution=4000, sampling=3, readout_noise=4.5)
+# plot the combined lines from the two lamps
+spectrum_test.line_plotter([lamp_ne,lamp_thar])
+
+# Generate your sample spectra
+spectrum_test.generate_spectra(lines=[lamp_ne,lamp_thar], photon_noise=True, readout_noise=10)
+
+# Use a Th-Ar lamp on the standard MOONS truth with a high readout noise
+spectrum_thar = Spectrum(truth=truth, resolution=4000, sampling=3)
+lamp_thar = spectrum_thar.lamp_builder(lamp='ThAr')
+spectrum_thar.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise=15)
 
 #%% Investigate Calibration class
 
 # Use standard MOONS truth and Th-Ar spectrum
 
-calibration = Calibration(truth=truth,spectrum=spectrum_th,orders=[3,4,5])
+calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4,5])
 
 

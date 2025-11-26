@@ -38,7 +38,7 @@ class Calibration:
             print('Incorrect truth object has been used as an input. Please use a CELTS Truth object.')
             
         if spectrum.tag != 'spectrum':
-            print('Incorrect spectrum object has been used as an input. Please use a CELTS Spectrum object.')
+            print('Incorrect spectrum object has been used as an input. Please use a CELTS Spectrum object with spectra generated.')
         
         
         # -------- Calculate centre of each expected line in the noisy data --------------
@@ -51,7 +51,7 @@ class Calibration:
             
             if line_fit == 'gaussian':
                 
-                amp = line['Intensity']*spectrum.global_scaling
+                amp = line['Intensity']*spectrum.global_scaling/1000
                 mean = truth.wav2pix(line['Wavelength']/10) # using truth fit to estimate where the lines will be in pixels
                 print('Centre of line = ' + str(round(mean,1)) + ' pix')
                 stddev = 1 # setting this as one pixel in all cases for now
@@ -59,6 +59,8 @@ class Calibration:
                 g_init = Gaussian1D(amplitude=amp,mean=mean,stddev=stddev)
                 fit_g = fitting.TRFLSQFitter()
                 g = fit_g(g_init,truth.pix,spectrum.calib_spec)
+                
+                self.g = g
                 
                 # record the estimated positions of each line
                 noisy_points.append(g.mean.value)
