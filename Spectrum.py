@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 
 class Spectrum:
     
-    def __init__(self,truth,resolution,sampling,global_scaling=50000,rel_ints=None,scaling_unit='max_counts'):
+    def __init__(self,truth,resolution,sampling=2,global_scaling=50000,rel_ints=None,scaling_unit='max_counts'):
         
         """ Spectrum Class
         
@@ -26,11 +26,21 @@ class Spectrum:
         
         Parameters
         ------------
-        lamp : str, list
-            The elements you will be using for your calibration. Options are...
-            
-            FILL THIS IN
-  
+        truth : class
+            The CELTS truth object containing the truth solution for your calibration and the wavelength range of interest.
+        resolution : int
+            The spectral resolution of your instrument.
+        sampling : int
+            The sampling on your detector in pixels. The default is 2 - Nyquist sampling. 
+        global_scaling : int
+            The scaling factor used to ensure there is a realistic number of counts in your calibration spectrum. 
+            The default is 50000, meaning the brightest line across all wavelengths and elements would have an amplitude of 50000 photons, excluding noise.
+        rel_ints : dict
+            The user has the ability to set the relative intensities of different lamps using this dictionary. 
+            The default is None meaning the default relative intensities will be used for converting between lamps.
+        scaling_unit : str
+            This variable can be eitehr 'max_counts' or 'photons'. 
+            It determines whether the global_scaling factor refers to the maximum intensity of a line (default) or the total number of photons under the gaussian curve for that line.
             
         Returns
         ------------
@@ -84,6 +94,25 @@ class Spectrum:
         
     def lamp_builder(self,lamp,plot=True):
         
+        """ lamp_builder function
+        
+        Function for generating all the possible lines produced by a given lamp in your wavelength range.
+        All intensity scaling factors (rel_ints and global_scaling) are applied here.
+        
+        Parameters
+        ------------
+        lamp : str
+            The type of lamp you which to generate lines for. The available options are defined by the entries in the stored rel_ints dictionary.
+        plot : bool
+            The user can set if they want to automatically receive a plot of their lines, coloured by element and scaled by rel_ints and global_scaling. The default is True.
+            
+        Returns
+        ------------
+        lines : astropy table
+            A table of all possible lines for your lamp and wavelength range. This includes their scaled intensities and wavelength.
+        
+        """
+        
         # convert lamp string into list of elements in that lamp
         elements = re.findall(r'[A-Z][^A-Z]*', lamp)
         #print(elements)  
@@ -133,7 +162,7 @@ class Spectrum:
         
             plt.figure()
             plt.xlim(self.truth.wav_min,self.truth.wav_max)
-            plt.xlabel('WL (nm)')
+            plt.xlabel('Wavelength (nm)')
             plt.ylabel('Relative Intensity')
             plt.title('Chosen Lines')
             for line in lines:
@@ -168,7 +197,31 @@ class Spectrum:
         return lines
           
            
-    def generate_spectra(self,lines,photon_noise,readout_noise,plot=True):
+    def generate_spectra(self,lines,photon_noise=False,readout_noise=0,seed=None,plot=True):
+        
+        """ generate_spectra function
+        
+        This function produces a predicted calibration spectrum that you would receive from your instrument.
+        
+        Parameters
+        ------------
+        lines : list, astropy table
+            The lines for the lamp or lamps you wish to use. These are astropy tables produced using the lamp_builder function. 
+            A list of astropy tables for different lamps can be provided (to enable the use of multiple lamps at once) or a single table for one lamp.
+        photon_noise : bool
+            The user can set if they want poisson photon noise to be applied to their spectrum. The default is False.
+        readout_noise : float
+            The user can set the level of readout noise they expect during their calibration in e-. The default is 0. 
+        seed : int
+            The user can provide a seed if they want their noise profiles to be reproducible. The default is None.
+        plot : bool
+            The user can set if they want to automatically receive a plot of their predicted calibration spectrum. The default is True.
+            
+        Returns
+        ------------
+        None
+        
+        """
         
         self.tag = 'spectrum' # used to ensure this function has been run before a calibration object is initiated
         
@@ -181,7 +234,7 @@ class Spectrum:
         
         # Set up variables for creating idealised spectrum
         lambda_range=[self.truth.wav_min,self.truth.wav_max]
-        pix_delta_wl=np.median(lambda_range)/self.resolution/self.sampling
+        pix_delta_wl=np.median(lambda_range)/self.resolution/self.sampling # we're approximating delta lambda as being constant per pixel
         pix_wl=np.arange(lambda_range[0],lambda_range[1],pix_delta_wl)
         pix_x=np.arange(len(pix_wl))
         y_lines=np.zeros_like(pix_x)
@@ -190,7 +243,11 @@ class Spectrum:
         
         for line in self.lines:
             
-            gaussian=Gaussian1D(line['Intensity'],np.interp(line['Wavelength(Ã…)']/10,pix_wl,pix_x),self.sampling/2.355) # 2.355 converts between gaussian fwhm and std dev
+            # generate gaussian for each line
+            gaussian=Gaussian1D(amplitude = line['Intensity'],
+                                mean      = np.interp(line['Wavelength(Ã…)']/10,pix_wl,pix_x),
+                                stddev    = self.sampling/2.355) # 2.355 converts between gaussian fwhm and std dev
+            
             y_lines=y_lines+gaussian(pix_x)
             
         self.ideal_spectrum = y_lines
@@ -202,7 +259,7 @@ class Spectrum:
             #Plot idealised spectrum with representative linewidth
             plt.figure(figsize=(10,5))
             plt.plot(pix_wl,self.ideal_spectrum)
-            plt.xlabel('WL (nm)')
+            plt.xlabel('Wavelength (nm)')
             plt.ylabel('Relative Intensity')
             plt.title('Chosen Lines Idealised Spectrum')
             
@@ -213,14 +270,21 @@ class Spectrum:
 
         ###############   Add noise   ###############
         
+        #if seed is None:
+         #   rng = np.random.default_rng()
+        #else:
+         #   rng = np.random.default_rng(seed)
+         
+        rng = np.random.default_rng(seed)
+            
         # Photon noise
         if photon_noise is True:
-            phot = np.random.poisson(lam=self.ideal_spectrum) 
+            phot = rng.poisson(lam=self.ideal_spectrum) 
         else:
             phot = self.ideal_spectrum
             
         # Readout noise
-        readout = np.random.normal(0,readout_noise,self.ideal_spectrum.shape)
+        readout = rng.normal(0,readout_noise,self.ideal_spectrum.shape)
         
         # New spectrum
         noisy_data_full = phot + readout
@@ -242,13 +306,30 @@ class Spectrum:
     
     def line_plotter(self,lines):
         
+        """ line_plotter function
+        
+        This function produces a plot of lamp lines, coloured by element and scaled by rel_ints and global_scaling. 
+        It enables you to combine multiple lamps and view a plot of their lines.
+        
+        Parameters
+        ------------
+        lines : list, astropy table
+            The lines for the lamp or lamps you wish to use. These are astropy tables produced using the lamp_builder function. 
+            A list of astropy tables for different lamps can be provided (to enable the use of multiple lamps at once) or a single table for one lamp.
+            
+        Returns
+        ------------
+        None
+        
+        """
+        
         # combine lines from different sources if provided with a list of lamps
         if type(lines) is list:   
             lines = vstack(lines)
         
         plt.figure()
         plt.xlim(self.truth.wav_min,self.truth.wav_max)
-        plt.xlabel('WL (nm)')
+        plt.xlabel('Wavelength (nm)')
         plt.ylabel('Relative Intensity')
         plt.title('Lines')
         for line in lines:

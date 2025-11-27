@@ -48,6 +48,4 @@ spectrum_thar.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise
 
 # Use standard MOONS truth and Th-Ar spectrum
 
-calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4,5])
-
-
+calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4,5],amp_cutoff=50,sttdev_cutoff=100)

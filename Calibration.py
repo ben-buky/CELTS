@@ -13,21 +13,33 @@ import numpy as np
 
 class Calibration:
     
-    def __init__(self,truth,spectrum,orders=5,line_fit='gaussian',plot=True):
+    def __init__(self,truth,spectrum,orders=5,line_fit='gaussian',amp_cutoff=100,sttdev_cutoff=50,plot=True):
         
         """ Calibration Class
         
         Class for conducting line fitting to the calibration points and generating a Legendre calibration model. 
+        Lines are kept and used to produce the final Legendre calibration model if they meet the criteria set by amp_cutoff and stddev_cutoff. 
         This class requires CELTS.Truth and CELTS.Spectrum objects to work.
         Calibration.calib_fit contains the final pix -> wavelength fit points. Calibration.calib_fit_func is the Legendre polynomial fit itself. 
         
         Parameters
         ------------
         truth : class
-            
-            FILL THIS IN
-  
-            
+            The CELTS truth object containing the truth solution for your calibration and the wavelength range of interest.
+        spectrum : class
+            The CELTS spectrum object containing the calibration spectrum.
+        orders : int, list
+            Specifies the order of the Legendre calibration fit you wish to generate. This can be a single order or a list of orders you would like to test. 
+        line_fit : str
+            The type of fit you would like to conduct on the lines in your spectrum. The default is 'gaussian'.
+        amp_cutoff : float
+            The minum amplitude (in counts) you require from a line fit for it to be considered a robust measurement and worth using for calibration. Lines which don't meet this criteria are discarded.
+        sttdev_cutoff : float
+            The acceptable tolerance (as a percentage) in the standard deviation of a line fit for it to be considered a robust measurement and worth using for calibration. 
+            The default is 50 % meaning if the calculated standard deviation is within +/- 50% of the expected value, the line is kept. 
+        plot : bool
+            The user can set if they want to automatically receive plots and analysis of their line fitting and final calibration. The default is True.
+        
         Returns
         ------------
         None
@@ -39,11 +51,19 @@ class Calibration:
             
         if spectrum.tag != 'spectrum':
             print('Incorrect spectrum object has been used as an input. Please use a CELTS Spectrum object with spectra generated.')
+            
+        # ------ Convert sttdev_cutoff from percentage into multiplicative factors -------
         
+        s = sttdev_cutoff/100
+        s_min = 1 - s
+        s_max = 1 + s
         
-        # -------- Calculate centre of each expected line in the noisy data --------------
-
+        # -------- Carry out line fitting to determine centres ---------------
+        # only lines which meet the amplitude and sttdev criteria are carried forward for the calibration fitting
+        
+        true_points = []
         noisy_points = []
+        wavelengths = []
 
         for line in spectrum.lines:
             
@@ -51,40 +71,44 @@ class Calibration:
             
             if line_fit == 'gaussian':
                 
-                amp = line['Intensity']*spectrum.global_scaling/1000
-                mean = truth.wav2pix(line['Wavelength']/10) # using truth fit to estimate where the lines will be in pixels
-                print('Centre of line = ' + str(round(mean,1)) + ' pix')
-                stddev = 1 # setting this as one pixel in all cases for now
+                amp = line['Intensity']*spectrum.global_scaling/1000 # missing rel_int factor but hopefully still provides an okay initial estimate
+                mean = truth.wav2pix(line['Wavelength(Ã…)']/10) # using truth fit to estimate where the lines will be in pixels
+                #print('Centre of line = ' + str(round(mean,1)) + ' pix')
+                stddev = spectrum.sampling/2.355 
                 
                 g_init = Gaussian1D(amplitude=amp,mean=mean,stddev=stddev)
                 fit_g = fitting.TRFLSQFitter()
                 g = fit_g(g_init,truth.pix,spectrum.calib_spec)
                 
-                self.g = g
+                # apply amplitude and sttdev cutoffs to determine which lines to use
+                if g.amplitude.value > amp_cutoff and stddev*s_min < g.stddev.value < stddev*s_max:
+                    
+                    # record the truth centre of each line in pixels, based on truth.wav2pix (accuracy is tied to this)
+                    true_points.append(mean)
+                    # record the estimated positions of each line
+                    noisy_points.append(g.mean.value)
+                    # record the known wavelength of that line
+                    wavelengths.append(line['Wavelength(Ã…)']/10)
                 
-                # record the estimated positions of each line
-                noisy_points.append(g.mean.value)
-            
-            if plot is True:
-                plt.figure()
-                plt.plot([g.mean.value,g.mean.value],[0,np.max(g(truth.pix))+5],'--',c='tab:blue',alpha=0.7)
-                plt.plot([mean,mean],[0,np.max(g(truth.pix))+5],'--',c='r',alpha=0.7)
-                plt.plot(spectrum.line_pix,spectrum.ideal_spectrum,label='Noiseless data', c='r')
-                plt.plot(truth.pix,spectrum.calib_spec,label='Noisy data',c='tab:orange')
-                plt.plot(truth.pix,g(truth.pix),'--',label='Fit',c='tab:blue')
-                plt.legend()
-                plt.xlabel('Pixel')
-                plt.ylabel('Intensity')
-                plt.xlim((mean-3*g.stddev.value,mean+3*g.stddev.value)) # restrict plot to +/- 3 sigma
-                plt.show()
-            
+                    if plot is True:
+                        plt.figure()
+                        plt.plot([g.mean.value,g.mean.value],[0,np.max(g(truth.pix))+5],'--',c='tab:blue',alpha=0.7)
+                        plt.plot([mean,mean],[0,np.max(g(truth.pix))+5],'--',c='r',alpha=0.7)
+                        plt.plot(spectrum.line_pix,spectrum.ideal_spectrum,label='Noiseless data', c='r')
+                        plt.plot(truth.pix,spectrum.calib_spec,label='Noisy data',c='tab:orange')
+                        plt.plot(truth.pix,g(truth.pix),'--',label='Fit',c='tab:blue')
+                        plt.legend()
+                        plt.xlabel('Pixel')
+                        plt.ylabel('Intensity')
+                        plt.xlim((mean-3*g.stddev.value,mean+3*g.stddev.value)) # restrict plot to +/- 3 sigma
+                        plt.show()
+         
+        self.true_points_pix = np.asarray(true_points)
         self.points_pix = np.asarray(noisy_points)
+        self.points_wav = np.asarray(wavelengths)
         
         
-        # --------- Perform fitting on points obtained ---------------------------
-        
-        # record the known wavelengths for the lines fitted above
-        self.points_wav = spectrum.lines['Wavelength']/10
+        # --------- Perform final wavelength calibration fitting on points obtained --------------
         
         # plot the calculated points onto our truth
         
@@ -99,7 +123,7 @@ class Calibration:
             plt.title('Calibration Points obtained from Spectrum')
             plt.show()
         
-        # for doing just one fit:
+        # for doing just one calibration fit:
         
         if type(orders) is int:
             
