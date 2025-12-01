@@ -236,8 +236,8 @@ class Spectrum:
         lambda_range=[self.truth.wav_min,self.truth.wav_max]
         pix_delta_wl=np.median(lambda_range)/self.resolution/self.sampling # we're approximating delta lambda as being constant per pixel
         pix_wl=np.arange(lambda_range[0],lambda_range[1],pix_delta_wl)
-        pix_x=np.arange(len(pix_wl))
-        y_lines=np.zeros_like(pix_x)
+        self.pix=np.arange(len(pix_wl))
+        y_lines=np.zeros_like(self.pix)
         
         # Create idealised spectrum
         
@@ -245,10 +245,10 @@ class Spectrum:
             
             # generate gaussian for each line
             gaussian=Gaussian1D(amplitude = line['Intensity'],
-                                mean      = np.interp(line['Wavelength(Ã…)']/10,pix_wl,pix_x),
+                                mean      = self.truth.wav2pix(line['Wavelength(Ã…)']/10)*(len(self.pix)/len(self.truth.pix)), #np.interp(line['Wavelength(Ã…)']/10,pix_wl,self.pix),
                                 stddev    = self.sampling/2.355) # 2.355 converts between gaussian fwhm and std dev
             
-            y_lines=y_lines+gaussian(pix_x)
+            y_lines=y_lines+gaussian(self.pix)
             
         self.ideal_spectrum = y_lines
             
@@ -266,14 +266,9 @@ class Spectrum:
         # Convert spectrum into realistic form
 
         # Spectrum from instrument will have pixels as x axis, so use wav2pix fit to convert
-        self.line_pix = self.truth.wav2pix(pix_wl)
+        #self.line_pix = self.truth.wav2pix(pix_wl)
 
         ###############   Add noise   ###############
-        
-        #if seed is None:
-         #   rng = np.random.default_rng()
-        #else:
-         #   rng = np.random.default_rng(seed)
          
         rng = np.random.default_rng(seed)
             
@@ -287,16 +282,16 @@ class Spectrum:
         readout = rng.normal(0,readout_noise,self.ideal_spectrum.shape)
         
         # New spectrum
-        noisy_data_full = phot + readout
+        self.calib_spec = phot + readout
 
         # Interpolate so we have correct number of data points for pixels
-        self.calib_spec = np.interp(self.truth.pix,self.line_pix,noisy_data_full)
+        #self.calib_spec = np.interp(self.truth.pix,self.line_pix,noisy_data_full)
         
         if plot is True:
             
             plt.figure(figsize=(10,5))
-            plt.plot(self.line_pix,self.ideal_spectrum,'--',label='Noiseless data', c='r')
-            plt.plot(self.truth.pix,self.calib_spec,label='Noisy data')
+            plt.plot(self.pix,self.ideal_spectrum,'--',label='Noiseless data', c='r')
+            plt.plot(self.pix,self.calib_spec,label='Noisy data')
             plt.legend()
             plt.xlabel('Pixel')
             plt.ylabel('Intensity')

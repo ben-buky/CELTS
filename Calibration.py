@@ -13,7 +13,7 @@ import numpy as np
 
 class Calibration:
     
-    def __init__(self,truth,spectrum,orders=5,line_fit='gaussian',amp_cutoff=100,sttdev_cutoff=50,plot=True):
+    def __init__(self,truth,spectrum,orders=5,line_fit='gaussian',amp_cutoff=100,sttdev_cutoff=20,plot=True):
         
         """ Calibration Class
         
@@ -59,7 +59,7 @@ class Calibration:
         s_max = 1 + s
         
         # -------- Carry out line fitting to determine centres ---------------
-        # only lines which meet the amplitude and sttdev criteria are carried forward for the calibration fitting
+        # only lines which meet the amplitude and stddev criteria are carried forward for the calibration fitting
         
         true_points = []
         noisy_points = []
@@ -71,14 +71,16 @@ class Calibration:
             
             if line_fit == 'gaussian':
                 
-                amp = line['Intensity']*spectrum.global_scaling/1000 # missing rel_int factor but hopefully still provides an okay initial estimate
-                mean = truth.wav2pix(line['Wavelength(Ã…)']/10) # using truth fit to estimate where the lines will be in pixels
-                #print('Centre of line = ' + str(round(mean,1)) + ' pix')
+                amp = line['Intensity']*np.max(spectrum.calib_spec) # amplitude estimate based on brightest line in calibration spectrum
+                mean = truth.wav2pix(line['Wavelength(Ã…)']/10)*(len(spectrum.pix)/len(truth.pix)) # using truth fit to estimate where the lines will be in pixels
+                print('Centre of line = ' + str(round(mean,1)) + ' pix')
                 stddev = spectrum.sampling/2.355 
                 
                 g_init = Gaussian1D(amplitude=amp,mean=mean,stddev=stddev)
                 fit_g = fitting.TRFLSQFitter()
-                g = fit_g(g_init,truth.pix,spectrum.calib_spec)
+                g = fit_g(g_init,spectrum.pix,spectrum.calib_spec)
+                
+                print([g.amplitude.value,g.stddev.value])
                 
                 # apply amplitude and sttdev cutoffs to determine which lines to use
                 if g.amplitude.value > amp_cutoff and stddev*s_min < g.stddev.value < stddev*s_max:
@@ -94,8 +96,8 @@ class Calibration:
                         plt.figure()
                         plt.plot([g.mean.value,g.mean.value],[0,np.max(g(truth.pix))+5],'--',c='tab:blue',alpha=0.7)
                         plt.plot([mean,mean],[0,np.max(g(truth.pix))+5],'--',c='r',alpha=0.7)
-                        plt.plot(spectrum.line_pix,spectrum.ideal_spectrum,label='Noiseless data', c='r')
-                        plt.plot(truth.pix,spectrum.calib_spec,label='Noisy data',c='tab:orange')
+                        plt.plot(spectrum.pix,spectrum.ideal_spectrum,label='Noiseless data', c='r')
+                        plt.plot(spectrum.pix,spectrum.calib_spec,label='Noisy data',c='tab:orange')
                         plt.plot(truth.pix,g(truth.pix),'--',label='Fit',c='tab:blue')
                         plt.legend()
                         plt.xlabel('Pixel')
@@ -112,10 +114,16 @@ class Calibration:
         
         # plot the calculated points onto our truth
         
+        # NEED TO DECIDE WHETHER TO SCALE UP OUR FITTING OR REDUCE THE TRUTH TO THE CORRECT PIXEL SIZES
+        
+        scale_truth = truth.pix*(len(spectrum.pix)-1)/(len(truth.pix)-1)
+        self.upd_truth_wav = np.interp(spectrum.pix,scale_truth,truth.wav)
+        
         if plot is True:
             
             plt.figure()
-            plt.plot(truth.pix,truth.wav,label='Truth', c='orangered')
+            #plt.plot(truth.pix,truth.wav,label='Truth', c='orangered')
+            plt.plot(spectrum.pix,self.upd_truth_wav,label='Truth', c='orangered')
             plt.scatter(self.points_pix,self.points_wav,label='Spectrum points', c='deepskyblue', marker='x')
             plt.xlabel('Pixel')
             plt.ylabel('Wavelength (nm)')
@@ -132,12 +140,13 @@ class Calibration:
             print('Legendre Calibration Fit: ' + str(self.calib_fit_func))
             
             # use fit to compute corresponding wavelength values
-            self.calib_fit = self.calib_fit_func(truth.pix)
+            self.calib_fit = self.calib_fit_func(spectrum.pix)
             
             # compute residuals
-            self.resids_wav = self.calib_fit - truth.wav
+            self.resids_wav = self.calib_fit - self.upd_truth_wav
             
             # interpolate to compute pixel residuals
+            # NEED TO ADD THESE ######################################################################################################################
             
             if plot is True:
                 
@@ -148,10 +157,10 @@ class Calibration:
                 axs[1].set_ylabel('Residual (nm)', labelpad=20)
                 axs[0].set(ylabel = 'Wavelength (nm)')
                 plt.suptitle('Calibration Fit')
-                axs[0].plot(truth.pix, truth.wav, label='Truth', c='orangered')
+                axs[0].plot(spectrum.pix, self.upd_truth_wav, label='Truth', c='orangered')
                 axs[0].scatter(self.points_pix, self.points_wav, label='Spectrum points', c='deepskyblue', marker='x')
-                axs[0].plot(truth.pix, self.calib_fit, label='Fit, order = ' + str(orders), c='tab:green')
-                axs[1].plot(truth.pix, self.resids_wav, c='tab:green')
+                axs[0].plot(spectrum.pix, self.calib_fit, label='Fit, order = ' + str(orders), c='tab:green')
+                axs[1].plot(spectrum.pix, self.resids_wav, c='tab:green')
                 axs[0].legend()
                 fig.tight_layout()
                 plt.show()
@@ -160,8 +169,10 @@ class Calibration:
             
         else:
             
-            self.calib_fit = np.zeros((len(orders),len(truth.pix)))
-            self.resids_wav = np.zeros((len(orders),len(truth.pix)))
+            orders = np.sort(orders)
+            
+            self.calib_fit = np.zeros((len(orders),len(spectrum.pix)))
+            self.resids_wav = np.zeros((len(orders),len(spectrum.pix)))
             self.calib_fit_func = []
             self.resids_wav_means = np.zeros(len(orders))
             
@@ -179,28 +190,28 @@ class Calibration:
             for i in range(len(orders)):
                 
                 # compute and print functional form of fit
-                legendre_fit = Legendre.fit(self.points_pix, self.points_wav, deg=orders[i])
-                self.calib_fit_func.append(legendre_fit)
-                print('Legendre Calibration Fit: ' + str(legendre_fit))
+                calib_fit_func = Legendre.fit(self.points_pix, self.points_wav, deg=orders[i])
+                self.calib_fit_func.append(calib_fit_func)
+                print('Legendre Calibration Fit: ' + str(calib_fit_func))
                 
                 # use fit to compute corresponding wavelength values
-                self.calib_fit[i] = legendre_fit(truth.pix)
+                self.calib_fit[i] = calib_fit_func(spectrum.pix)
                 
                 # compute residuals
-                self.resids_wav[i] = self.calib_fit[i] - truth.wav
+                self.resids_wav[i] = self.calib_fit[i] - self.upd_truth_wav
                 self.resids_wav_means[i] = np.mean(abs(self.resids_wav[i]))
                 
                 if plot is True:
                     
-                    axs[0].plot(truth.pix, self.calib_fit[i], label='Fit, order = ' + str(orders[i]))
-                    axs[1].plot(truth.pix, abs(self.resids_wav[i]))
+                    axs[0].plot(spectrum.pix, self.calib_fit[i], label='Fit, order = ' + str(orders[i]))
+                    axs[1].plot(spectrum.pix, abs(self.resids_wav[i]))
                  
             # leave loop
             
             if plot is True:
                 
                 # complete plot
-                axs[0].plot(truth.pix, truth.wav, label='Truth', c='orangered')
+                axs[0].plot(spectrum.pix, self.upd_truth_wav, label='Truth', c='orangered')
                 axs[0].scatter(self.points_pix, self.points_wav, label='Spectrum points', c='deepskyblue', marker='x')
                 axs[0].legend()
                 #axs[1].set_yscale('log')
