@@ -114,7 +114,7 @@ class Calibration:
         
         # plot the calculated points onto our truth
         
-        # NEED TO DECIDE WHETHER TO SCALE UP OUR FITTING OR REDUCE THE TRUTH TO THE CORRECT PIXEL SIZES
+        # NEED TO DECIDE WHETHER TO SCALE UP OUR FITTING OR REDUCE THE TRUTH TO THE CORRECT PIXEL SIZES - CURRENTLY REDUCING TRUTH
         
         scale_truth = truth.pix*(len(spectrum.pix)-1)/(len(truth.pix)-1)
         self.upd_truth_wav = np.interp(spectrum.pix,scale_truth,truth.wav)

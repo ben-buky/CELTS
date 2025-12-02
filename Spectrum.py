@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 
 class Spectrum:
     
-    def __init__(self,truth,resolution,sampling=2,global_scaling=50000,rel_ints=None,scaling_unit='max_counts'):
+    def __init__(self,truth,resolution,sampling=2,rel_ints=None,scaling_unit='peak_counts'):
         
         """ Spectrum Class
         
@@ -32,14 +32,11 @@ class Spectrum:
             The spectral resolution of your instrument.
         sampling : int
             The sampling on your detector in pixels. The default is 2 - Nyquist sampling. 
-        global_scaling : int
-            The scaling factor used to ensure there is a realistic number of counts in your calibration spectrum. 
-            The default is 50000, meaning the brightest line across all wavelengths and elements would have an amplitude of 50000 photons, excluding noise.
         rel_ints : dict
             The user has the ability to set the relative intensities of different lamps using this dictionary. 
             The default is None meaning the default relative intensities will be used for converting between lamps.
         scaling_unit : str
-            This variable can be eitehr 'max_counts' or 'photons'. 
+            This variable can be eitehr 'peak_counts' or 'photons'. 
             It determines whether the global_scaling factor refers to the maximum intensity of a line (default) or the total number of photons under the gaussian curve for that line.
             
         Returns
@@ -54,12 +51,13 @@ class Spectrum:
         else:
             self.truth = truth
         
-        if scaling_unit == 'max_counts':
-            self.global_scaling = global_scaling
+        # NEED TO DECIDE WHAT TO DO ABOUT THIS
+        #if scaling_unit == 'peak_counts':
+         #   self.global_scaling = global_scaling
             
-        if scaling_unit == 'photons':       
+        #if scaling_unit == 'photons':       
             # need to put eqn in here to convert from max counts to flux under gaussian
-            self.global_scaling = global_scaling
+         #   self.global_scaling = global_scaling
             
         self.resolution = resolution
         self.sampling   = sampling
@@ -73,38 +71,42 @@ class Spectrum:
             
             ###################     Pencil Lamps    #########################
 
-            self.rel_ints['Ar']   = [1]
-            self.rel_ints['Ne']   = [1]
-            self.rel_ints['Kr']   = [1]
-            self.rel_ints['Xe']   = [1]
+            #self.rel_ints['Ar']   = [1]
+            #self.rel_ints['Ne']   = [1]
+            #self.rel_ints['Kr']   = [1]
+            #self.rel_ints['Xe']   = [1]
             
             ###############   Hollow Cathode Lamps   ########################
             
             # the values refer to the relative intensities of the elements in the order they are written
             
             self.rel_ints['ThAr'] = [0.1,1]
-            self.rel_ints['ThNe'] = [0.01,0.2]
-            self.rel_ints['UAr']  = [0.01,0.2]
-            self.rel_ints['UNe']  = [0.01,0.2]
+            self.rel_ints['ThNe'] = [0.1,1]
+            self.rel_ints['UAr']  = [0.1,1]
+            self.rel_ints['UNe']  = [0.1,1]
         
         # case where user sets the relative intensities themselves
         else:
             self.rel_ints = rel_ints
             
         
-    def lamp_builder(self,lamp,plot=True):
+    def lamp_builder(self,lamp,max_counts=50000,user_ints=None,plot=True):
         
         """ lamp_builder function
         
         Function for generating all the possible lines produced by a given lamp in your wavelength range.
-        All intensity scaling factors (rel_ints and global_scaling) are applied here.
+        All intensity scaling factors (rel_ints and max_counts) are applied here.
         
         Parameters
         ------------
         lamp : str
-            The type of lamp you which to generate lines for. The available options are defined by the entries in the stored rel_ints dictionary.
+            The type of lamp you wish to generate lines for. The available options are defined by the entries in the stored rel_ints dictionary.
+        max_counts : int
+            The peak number of counts/intensity for the brightest line in your wavelength range for this lamp. The default is 50000. 
+        user_ints : list
+            The relative intensities you would like to use in this lamp (overwrites stored values). The default is None.
         plot : bool
-            The user can set if they want to automatically receive a plot of their lines, coloured by element and scaled by rel_ints and global_scaling. The default is True.
+            The user can set if they want to automatically receive a plot of their lines, coloured by element and scaled by rel_ints and max_counts. The default is True.
             
         Returns
         ------------
@@ -116,6 +118,10 @@ class Spectrum:
         # convert lamp string into list of elements in that lamp
         elements = re.findall(r'[A-Z][^A-Z]*', lamp)
         #print(elements)  
+        
+        # overwrite stored relative intensities if user has specified their own
+        if user_ints is not None:
+            self.rel_ints[lamp] = user_ints
         
         ############## Create full line list object #############
         
@@ -142,17 +148,24 @@ class Spectrum:
                 
         selected_lines=table.vstack(selected)
         
-        # set the scaling factors you're going to use based on the lamp provided
-        rel_scaling = self.rel_ints[lamp]
-        
-        # apply the relative scaling factors
-        for i in range(len(selected_lines)):
-            for j in range(len(rel_scaling)):
-                if selected_lines['Element'][i] == elements[j]:
-                    selected_lines['Intensity'][i] = selected_lines['Intensity'][i]*rel_scaling[j]*self.global_scaling/1000
-        
         # Filter the lines by wavelength
         lines=selected_lines[(selected_lines['Wavelength(Ã…)']/10>self.truth.wav_min) & (selected_lines['Wavelength(Ã…)']/10<self.truth.wav_max)] # /10 to account for angstroms
+        
+        # set the relative scaling factors
+        if len(elements) > 1:
+            rel_scaling = self.rel_ints[lamp]
+        else:
+            rel_scaling = [1]
+        
+        # apply the relative scaling factors
+        for i in range(len(lines)):
+            for j in range(len(rel_scaling)):
+                if lines['Element'][i] == elements[j]:
+                    lines['Intensity'][i] = lines['Intensity'][i]*rel_scaling[j]
+                    
+        # apply the global scaling based on max_counts
+        global_scaling = max_counts/np.max(lines['Intensity'])
+        lines['Intensity'] *= int(global_scaling)
         
         # Plot the chosen lines
         
@@ -303,7 +316,7 @@ class Spectrum:
         
         """ line_plotter function
         
-        This function produces a plot of lamp lines, coloured by element and scaled by rel_ints and global_scaling. 
+        This function produces a plot of lamp lines, coloured by element and scaled by rel_ints and max_counts. 
         It enables you to combine multiple lamps and view a plot of their lines.
         
         Parameters
