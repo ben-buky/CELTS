@@ -72,7 +72,7 @@ class Calibration:
             if line_fit == 'gaussian':
                 
                 amp = line['Intensity']*np.max(spectrum.calib_spec) # amplitude estimate based on brightest line in calibration spectrum
-                mean = truth.wav2pix(line['Wavelength(Ã…)']/10)*(len(spectrum.pix)/len(truth.pix)) # using truth fit to estimate where the lines will be in pixels
+                mean = truth.wav2pix(line['Wavelength(Ã…)']/10)*(len(spectrum.pix)-1)/(len(truth.pix)-1) # using truth fit to estimate where the lines will be in pixels
                 print('Centre of line = ' + str(round(mean,1)) + ' pix')
                 stddev = spectrum.sampling/2.355 
                 
@@ -142,10 +142,11 @@ class Calibration:
             # use fit to compute corresponding wavelength values
             self.calib_fit = self.calib_fit_func(spectrum.pix)
             
-            # compute residuals
+            # compute wavelength residuals
             self.resids_wav = self.calib_fit - self.upd_truth_wav
             
             # interpolate to compute pixel residuals
+            
             # NEED TO ADD THESE ######################################################################################################################
             
             if plot is True:

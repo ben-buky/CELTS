@@ -258,7 +258,7 @@ class Spectrum:
             
             # generate gaussian for each line
             gaussian=Gaussian1D(amplitude = line['Intensity'],
-                                mean      = self.truth.wav2pix(line['Wavelength(Ã…)']/10)*(len(self.pix)/len(self.truth.pix)), #np.interp(line['Wavelength(Ã…)']/10,pix_wl,self.pix),
+                                mean      = self.truth.wav2pix(line['Wavelength(Ã…)']/10)*(len(self.pix)-1)/(len(self.truth.pix)-1), #np.interp(line['Wavelength(Ã…)']/10,pix_wl,self.pix),
                                 stddev    = self.sampling/2.355) # 2.355 converts between gaussian fwhm and std dev
             
             y_lines=y_lines+gaussian(self.pix)
