@@ -146,8 +146,9 @@ class Calibration:
             self.resids_wav = self.calib_fit - self.upd_truth_wav
             
             # interpolate to compute pixel residuals
-            
-            # NEED TO ADD THESE ######################################################################################################################
+            truth_4_pix_resids = np.interp(self.calib_fit,truth.wav,scale_truth) # find the pixel values at the wavelength points in the fit
+            self.truth_4_pix_resids = truth_4_pix_resids
+            self.resids_pix = spectrum.pix - truth_4_pix_resids # record the pixel residual
             
             if plot is True:
                 
@@ -174,8 +175,10 @@ class Calibration:
             
             self.calib_fit = np.zeros((len(orders),len(spectrum.pix)))
             self.resids_wav = np.zeros((len(orders),len(spectrum.pix)))
+            self.resids_pix = np.zeros((len(orders),len(spectrum.pix)))
             self.calib_fit_func = []
             self.resids_wav_means = np.zeros(len(orders))
+            self.resids_pix_means = np.zeros(len(orders))
             
             # do universal bits of plot
             if plot is True:
@@ -198,9 +201,14 @@ class Calibration:
                 # use fit to compute corresponding wavelength values
                 self.calib_fit[i] = calib_fit_func(spectrum.pix)
                 
-                # compute residuals
+                # compute wavelength residuals
                 self.resids_wav[i] = self.calib_fit[i] - self.upd_truth_wav
                 self.resids_wav_means[i] = np.mean(abs(self.resids_wav[i]))
+                
+                # interpolate to compute pixel residuals
+                truth_4_pix_resids = np.interp(self.calib_fit[i],truth.wav,scale_truth) # find the pixel values at the wavelength points in the fit
+                self.resids_pix[i] = spectrum.pix - truth_4_pix_resids # record the pixel residual
+                self.resids_pix_means[i] = np.mean(abs(self.resids_pix[i]))
                 
                 if plot is True:
                     

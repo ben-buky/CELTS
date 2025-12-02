@@ -41,14 +41,25 @@ spectrum_test.generate_spectra(lines=[lamp_ne,lamp_thar], photon_noise=True, rea
 
 # Use a Th-Ar lamp on the standard MOONS truth with a high readout noise
 spectrum_thar = Spectrum(truth=truth, resolution=4000, sampling=2)
-lamp_thar = spectrum_thar.lamp_builder(lamp='ThAr')
+lamp_thar = spectrum_thar.lamp_builder(lamp='ThAr',max_counts=50000)
 spectrum_thar.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise=15)
 
 #%% Investigate Calibration class
 
 # Use standard MOONS truth and Th-Ar spectrum
 
-calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4,5],amp_cutoff=100,sttdev_cutoff=20)
+calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4],amp_cutoff=100,sttdev_cutoff=20)
+
+#%% Investigate and verify pixel residuals method
+
+plt.figure()
+plt.plot(spectrum_thar.pix, calibration.upd_truth_wav, label='Truth', c='orangered', marker='.')
+plt.scatter(calibration.points_pix, calibration.points_wav, label='Spectrum points', c='deepskyblue', marker='x')
+plt.plot(spectrum_thar.pix, calibration.calib_fit, label='Fit, order = 4', c='tab:green',marker='.')
+plt.scatter(calibration.truth_4_pix_resids, calibration.calib_fit, label = 'Pixel resid points', marker='.')
+plt.legend()
+plt.xlabel('Pixel')
+plt.ylabel('Wavelength')
 
 
 #%% Testing with Lawrence
