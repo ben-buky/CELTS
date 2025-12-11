@@ -98,7 +98,7 @@ class Calibration:
                         plt.plot([mean,mean],[0,np.max(g(truth.pix))+5],'--',c='r',alpha=0.7)
                         plt.plot(spectrum.pix,spectrum.ideal_spectrum,label='Noiseless data', c='r')
                         plt.plot(spectrum.pix,spectrum.calib_spec,label='Noisy data',c='tab:orange')
-                        plt.plot(truth.pix,g(truth.pix),'--',label='Fit',c='tab:blue')
+                        plt.plot(spectrum.pix,g(spectrum.pix),'--',label='Fit',c='tab:blue')
                         plt.legend()
                         plt.xlabel('Pixel')
                         plt.ylabel('Intensity')

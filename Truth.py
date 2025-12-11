@@ -44,6 +44,8 @@ class Truth:
         
         if truth_data is None:
             
+            self.user_truth = False
+            
             # Load the MOONS Legendre fits. The wav2pix fit has a mean absolute residual <1% of a pixel, and maximum residual <5% of a pixel. 
             
             # load wav2pix mapping - this is used later for spectrum creation
@@ -68,6 +70,9 @@ class Truth:
             self.wav_max = wav_max
             
         else:
+            
+            self.user_truth = True
+            
             # if user specifies their own truth, save this in the same format and generate wav2pix mapping
             
             self.wav = truth_data[0]

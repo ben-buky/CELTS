@@ -19,11 +19,6 @@ truth = Truth()
 # Load a cropped version of the MOONS truth
 truth2 = Truth(wav_min=1450, wav_max=1700)
 
-# Take a cropped bit of the MOONS truth and use this as an example user inputted truth
-sample_truth = [truth.wav[:2000],truth.pix[:2000]]
-
-user_truth = Truth(truth_data=sample_truth,fit_quality=0.1) # mean residual of fit must be less than 10% of a pixel
-
 #%% Investigate the spectrum class
 
 # Use a Th-Ar lamp and a Ne lamp on the standard MOONS truth, with a low resolution so you see linewidth
@@ -49,6 +44,30 @@ spectrum_thar.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise
 # Use standard MOONS truth and Th-Ar spectrum
 
 calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4],amp_cutoff=100,sttdev_cutoff=20)
+
+#%% Investigate using a user inputted truth
+
+# Take a cropped bit of the MOONS truth and use this as an example user inputted truth
+sample_truth = [truth.wav[:2000],truth.pix[:2000]]
+
+user_truth = Truth(truth_data=sample_truth,fit_quality=0.1) # mean residual of fit must be less than 10% of a pixel
+
+# plot truth to check things are the same
+
+plt.figure()
+plt.plot(user_truth.wav, user_truth.pix)
+plt.plot(sample_truth[0],sample_truth[1])
+plt.show()
+
+# generate spectrum
+
+spectrum = Spectrum(truth=user_truth, sampling=2)
+
+lamp_thar = spectrum.lamp_builder(lamp='ThAr')
+
+spectrum.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise=15)
+
+calibration = Calibration(truth=user_truth, spectrum=spectrum, orders=[3,4,7])
 
 #%% Investigate and verify pixel residuals method
 

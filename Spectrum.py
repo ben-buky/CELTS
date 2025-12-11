@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 
 class Spectrum:
     
-    def __init__(self,truth,resolution,sampling=2,rel_ints=None,scaling_unit='peak_counts'):
+    def __init__(self,truth,resolution=None,sampling=2,rel_ints=None,scaling_unit='peak_counts'):
         
         """ Spectrum Class
         
@@ -29,7 +29,7 @@ class Spectrum:
         truth : class
             The CELTS truth object containing the truth solution for your calibration and the wavelength range of interest.
         resolution : int
-            The spectral resolution of your instrument.
+            The spectral resolution of your instrument. The default is none - used when a user truth is supplied.
         sampling : int
             The sampling on your detector in pixels. The default is 2 - Nyquist sampling. 
         rel_ints : dict
@@ -167,6 +167,9 @@ class Spectrum:
         global_scaling = max_counts/np.max(lines['Intensity'])
         lines['Intensity'] *= int(global_scaling)
         
+        #order the lines in the table by wavelength
+        lines.sort('Wavelength(Ã…)')
+        
         # Plot the chosen lines
         
         if plot is True:
@@ -241,16 +244,26 @@ class Spectrum:
         # combine lines from different lamps
         if type(lines) is list:   
             self.lines = vstack(lines)
+            self.lines.sort('Wavelength(Ã…)')
             
         else:
             self.lines = lines
+            self.lines.sort('Wavelength(Ã…)')
+            
+        # Create the pixel grid for your spectrum
         
-        # Set up variables for creating idealised spectrum
-        lambda_range=[self.truth.wav_min,self.truth.wav_max]
-        pix_delta_wl=np.median(lambda_range)/self.resolution/self.sampling # we're approximating delta lambda as being constant per pixel
-        pix_wl=np.arange(lambda_range[0],lambda_range[1],pix_delta_wl)
-        self.pix=np.arange(len(pix_wl))
-        y_lines=np.zeros_like(self.pix)
+        if self.truth.user_truth is True:
+            self.pix = self.truth.pix # if the user supplies a truth we use that as our pixel grid
+            y_lines=np.zeros_like(self.pix)
+            #pix_wl = self.truth.wav
+            
+        else:
+            # Set up variables for creating idealised spectrum
+            lambda_range=[self.truth.wav_min,self.truth.wav_max]
+            pix_delta_wl=np.median(lambda_range)/self.resolution/self.sampling # we're approximating delta lambda as being constant per pixel
+            pix_wl=np.arange(lambda_range[0],lambda_range[1],pix_delta_wl)
+            self.pix=np.arange(len(pix_wl))
+            y_lines=np.zeros_like(self.pix)
         
         # Create idealised spectrum
         
@@ -267,14 +280,14 @@ class Spectrum:
             
         # Create plot of idealised spectrum
         
-        if plot is True:
+        #if plot is True:
             
             #Plot idealised spectrum with representative linewidth
-            plt.figure(figsize=(10,5))
-            plt.plot(pix_wl,self.ideal_spectrum)
-            plt.xlabel('Wavelength (nm)')
-            plt.ylabel('Relative Intensity')
-            plt.title('Chosen Lines Idealised Spectrum')
+         #   plt.figure(figsize=(10,5))
+          #  plt.plot(pix_wl,self.ideal_spectrum)
+           # plt.xlabel('Wavelength (nm)')
+            #plt.ylabel('Relative Intensity')
+            #plt.title('Chosen Lines Idealised Spectrum')
             
         # Convert spectrum into realistic form
 
