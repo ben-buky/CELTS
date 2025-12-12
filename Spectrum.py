@@ -36,7 +36,7 @@ class Spectrum:
             The user has the ability to set the relative intensities of different lamps using this dictionary. 
             The default is None meaning the default relative intensities will be used for converting between lamps.
         scaling_unit : str
-            This variable can be eitehr 'peak_counts' or 'photons'. 
+            This variable can be either 'peak_counts' or 'photons'. 
             It determines whether the global_scaling factor refers to the maximum intensity of a line (default) or the total number of photons under the gaussian curve for that line.
             
         Returns

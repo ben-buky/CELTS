@@ -4,7 +4,7 @@ Created on Wed Sep  3 15:41:14 2025
 
 @author: bbuky
 """
-
+# Import classes
 from Truth import Truth
 from Spectrum import Spectrum
 from Calibration import Calibration
@@ -23,18 +23,20 @@ truth2 = Truth(wav_min=1450, wav_max=1700)
 
 # Use a Th-Ar lamp and a Ne lamp on the stored truth, with a low resolution so you see linewidth
 
-spectrum_test = Spectrum(truth=truth, resolution=1000, sampling=2)
+spectrum_test = Spectrum(truth=truth, resolution=1000, sampling=2,rel_ints=None,scaling_unit='peak_counts') # initialise class by specifying truth to use plus resolution and sampling
 
-lamp_ne = spectrum_test.lamp_builder(lamp='Ne')
-lamp_thar = spectrum_test.lamp_builder(lamp='ThAr')
+# build desired lamps, can be pencil or hollow cathode lamp
+lamp_ne = spectrum_test.lamp_builder(lamp='Ne',max_counts=50000,user_ints=None,plot=True)
+lamp_thar = spectrum_test.lamp_builder(lamp='ThAr',max_counts=50000,user_ints=None,plot=True)
 
 # plot the combined lines from the two lamps
 spectrum_test.line_plotter([lamp_ne,lamp_thar])
 
 # Generate your sample spectra
-spectrum_test.generate_spectra(lines=[lamp_ne,lamp_thar], photon_noise=True, readout_noise=10)
+spectrum_test.generate_spectra(lines=[lamp_ne,lamp_thar], photon_noise=True, readout_noise=10, seed=None, plot=True) # set noise in spectrum when you generate it
 
-# Use a Th-Ar lamp on the stored truth with a high readout noise
+
+# Use a Th-Ar lamp on the stored truth with a higher readout noise and resolution
 spectrum_thar = Spectrum(truth=truth, resolution=4000, sampling=2)
 lamp_thar = spectrum_thar.lamp_builder(lamp='ThAr',max_counts=50000)
 spectrum_thar.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise=15)
@@ -43,7 +45,7 @@ spectrum_thar.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise
 
 # Using the stored truth and Th-Ar spectrum
 
-calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4],amp_cutoff=100,sttdev_cutoff=20)
+calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4],amp_cutoff=100,sttdev_cutoff=20,plot=True)
 
 #%% Investigate using a user inputted truth
 
