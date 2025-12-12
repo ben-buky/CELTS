@@ -13,15 +13,15 @@ from matplotlib import pyplot as plt
 
 #%% Investigate the truth class
 
-# Load the standard MOONS truth
+# Load the stored truth
 truth = Truth()
 
-# Load a cropped version of the MOONS truth
+# Load a cropped version of the stored truth
 truth2 = Truth(wav_min=1450, wav_max=1700)
 
 #%% Investigate the spectrum class
 
-# Use a Th-Ar lamp and a Ne lamp on the standard MOONS truth, with a low resolution so you see linewidth
+# Use a Th-Ar lamp and a Ne lamp on the stored truth, with a low resolution so you see linewidth
 
 spectrum_test = Spectrum(truth=truth, resolution=1000, sampling=2)
 
@@ -34,20 +34,20 @@ spectrum_test.line_plotter([lamp_ne,lamp_thar])
 # Generate your sample spectra
 spectrum_test.generate_spectra(lines=[lamp_ne,lamp_thar], photon_noise=True, readout_noise=10)
 
-# Use a Th-Ar lamp on the standard MOONS truth with a high readout noise
+# Use a Th-Ar lamp on the stored truth with a high readout noise
 spectrum_thar = Spectrum(truth=truth, resolution=4000, sampling=2)
 lamp_thar = spectrum_thar.lamp_builder(lamp='ThAr',max_counts=50000)
 spectrum_thar.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise=15)
 
 #%% Investigate Calibration class
 
-# Use standard MOONS truth and Th-Ar spectrum
+# Using the stored truth and Th-Ar spectrum
 
 calibration = Calibration(truth=truth,spectrum=spectrum_thar,orders=[3,4],amp_cutoff=100,sttdev_cutoff=20)
 
 #%% Investigate using a user inputted truth
 
-# Take a cropped bit of the MOONS truth and use this as an example user inputted truth
+# Take a cropped bit of the stored truth and use this as an example user inputted truth
 sample_truth = [truth.wav[:2000],truth.pix[:2000]]
 
 user_truth = Truth(truth_data=sample_truth,fit_quality=0.1) # mean residual of fit must be less than 10% of a pixel
@@ -83,7 +83,7 @@ plt.ylabel('Wavelength')
 
 #%% Testing with Lawrence
 
-# Load the standard MOONS truth
+# Load the stored truth
 truth = Truth()
 
 # Initiate spectrum class

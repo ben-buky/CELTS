@@ -17,16 +17,16 @@ class Truth:
         """ Truth Class
         
         Class for storing the chosen 'truth' solution for the wavelength calibration, defined over a given wavelength range. 
-        The pre-loaded truth is based on the VLT MOONS solution between 1418 and 1835 nm, but should hold for all MOS instruments.
+        The pre-loaded truth is based on MOS data between 1418 and 1835 nm.
         Users can also input their own truths using truth_data. A Legendre polynomial fit will be found for this data, and the order of this polynomial is determined by fit_quality.
         When using a user defined truth, the inputs wav_min and wav_max are ignored. The code instead finds these limits from the truth data provided.
         
         Parameters
         ------------
         wav_min : float
-            The minimum wavelength, in nanometres, which you want your calibration to cover. The default is for the MOONS data.
+            The minimum wavelength, in nanometres, which you want your calibration to cover. The default is for the pre-loaded data.
         wav_max : float
-            The maximum wavelength, in nanometres, which you want your calibration to cover. The default is for the MOONS data.
+            The maximum wavelength, in nanometres, which you want your calibration to cover. The default is for the pre-loaded data.
         truth_data : 2D array
             The user defined true wavelength calibration solution in the form [lambda (nm), pix]. The default is None, meaning the pre-loaded solution is used.
         fit_quality : float
@@ -46,17 +46,17 @@ class Truth:
             
             self.user_truth = False
             
-            # Load the MOONS Legendre fits. The wav2pix fit has a mean absolute residual <1% of a pixel, and maximum residual <5% of a pixel. 
+            # Load the stored Legendre fits. The wav2pix fit has a mean absolute residual <1% of a pixel, and maximum residual <5% of a pixel. 
             
             # load wav2pix mapping - this is used later for spectrum creation
-            with open('Truths/MOONS_wav2pix.pkl', 'rb') as f:
+            with open('Truths/MOS_wav2pix.pkl', 'rb') as f:
                 self.wav2pix = pickle.load(f)
             
             # load pix2wav mapping - this is used to generate our truth data
-            with open('Truths/MOONS_pix2wav.pkl', 'rb') as f:
+            with open('Truths/MOS_pix2wav.pkl', 'rb') as f:
                 pix2wav = pickle.load(f)
             
-            # this is the hardcoded original number of pixels for the MOONS data
+            # this is the hardcoded original number of pixels for the stored data
             pix = np.arange(0,4096)
             # generate wavelength 'truth' data
             wav = pix2wav(pix)
