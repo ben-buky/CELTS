@@ -7,7 +7,7 @@ Created on Tue Sep  9 12:03:19 2025
 
 from astropy import io
 from astropy import table
-from astropy.table import vstack
+from astropy.table import vstack, Column, Table
 import re
 import numpy as np
 from astropy.modeling.functional_models import Gaussian1D
@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 
 class Spectrum:
     
-    def __init__(self,truth,resolution=None,sampling=2,rel_ints=None,scaling_unit='peak_counts'):
+    def __init__(self,truth,resolution=None,sampling=2,rel_ints=None):
         
         """ Spectrum Class
         
@@ -35,10 +35,7 @@ class Spectrum:
         rel_ints : dict
             The user has the ability to set the relative intensities of different lamps using this dictionary. 
             The default is None meaning the default relative intensities will be used for converting between lamps.
-        scaling_unit : str
-            This variable can be either 'peak_counts' or 'photons'. 
-            It determines whether the global_scaling factor refers to the maximum intensity of a line (default) or the total number of photons under the gaussian curve for that line.
-            
+
         Returns
         ------------
         None
@@ -50,14 +47,6 @@ class Spectrum:
             print('Incorrect truth object has been used as an input. Please use a CELTS Truth object.')
         else:
             self.truth = truth
-        
-        # NEED TO DECIDE WHAT TO DO ABOUT THIS
-        #if scaling_unit == 'peak_counts':
-         #   self.global_scaling = global_scaling
-            
-        #if scaling_unit == 'photons':       
-            # need to put eqn in here to convert from max counts to flux under gaussian
-         #   self.global_scaling = global_scaling
             
         self.resolution = resolution
         self.sampling   = sampling
@@ -80,7 +69,7 @@ class Spectrum:
             
             # the values refer to the relative intensities of the elements in the order they are written
             
-            self.rel_ints['ThAr'] = [0.1,1]
+            self.rel_ints['ThAr'] = [0.093,1]
             self.rel_ints['ThNe'] = [0.1,1]
             self.rel_ints['UAr']  = [0.1,1]
             self.rel_ints['UNe']  = [0.1,1]
@@ -89,6 +78,89 @@ class Spectrum:
         else:
             self.rel_ints = rel_ints
             
+    
+    def load_stored_lamp(self, lamp, max_counts=50000,plot=True):
+        
+        """ load stored lamp function
+        
+        Function for calling the data from a lamp stored within the package. A ThAr lamp and a CeNe lamp are the options.
+        This function will scale the data for this lamp and apply wavelength bounds.
+        
+        Parameters
+        ------------
+        lamp : str
+            The type of lamp you wish to generate lines for. The available options are 'ThAr' and 'CeNe'.
+        max_counts : int
+            The peak number of counts/intensity for the brightest line in your wavelength range for this lamp. The default is 50000. 
+        plot : bool
+            The user can set if they want to automatically receive a plot of their lines, coloured by element and scaled by rel_ints and max_counts. The default is True.
+            
+        Returns
+        ------------
+        lines : astropy table
+            A table of all possible lines for your lamp and wavelength range. This includes their scaled intensities and wavelength.
+        
+        """
+        
+        all_lines = Table.read('Line_lists\\' + lamp + '.csv')
+        
+        # Filter the lines by wavelength
+        lines=all_lines[(all_lines['Wavelength (nm)']>self.truth.wav_min) & (all_lines['Wavelength (nm)']<self.truth.wav_max)]
+        
+        lines['Intensity'] = Column(lines['Intensity'].astype(np.float64), name='Intensity')
+        
+        # apply the global scaling based on max_counts
+        global_scaling = max_counts/np.max(lines['Intensity'])
+        lines['Intensity'] *= global_scaling
+                    
+        #order the lines in the table by wavelength
+        lines.sort('Wavelength (nm)')
+        
+        # Plot the chosen lines
+        if plot is True:
+            
+            # Create plot of lines, coloured by element
+        
+            plt.figure()
+            plt.xlim(self.truth.wav_min,self.truth.wav_max)
+            plt.xlabel('Wavelength (nm)')
+            plt.ylabel('Relative Intensity')
+            plt.title('Chosen Lines')
+            for line in lines:
+               if line['Element'] == 'Kr':
+                  color='blue'
+                  lab='Kr'
+               elif line['Element'] == 'Ar':
+                  color='green'
+                  lab='Ar'
+               elif line['Element'] == 'Xe':
+                  color='yellow' 
+                  lab='Xe'
+               elif line['Element'] == 'Ne':
+                  color='orange' 
+                  lab='Ne'
+               elif line['Element'] == 'Hg':
+                  color='red' 
+                  lab='Hg'
+               elif line['Element'] == 'U':
+                  color='purple' 
+                  lab='U'
+               elif line['Element'] == 'Th':
+                  color='pink' 
+                  lab='Th'
+               elif line['Element'] == 'Ce':
+                   color='deepskyblue'
+                   lab='Ce'
+                  
+               plt.plot([line['Wavelength (nm)'],line['Wavelength (nm)']],[0,line['Intensity']],color=color,label=lab)
+               
+            handles, labels = plt.gca().get_legend_handles_labels()
+            unique = dict(zip(labels, handles))
+            plt.legend(unique.values(), unique.keys())
+            plt.show()
+            
+        return lines
+        
         
     def lamp_builder(self,lamp,max_counts=50000,user_ints=None,plot=True):
         
@@ -125,7 +197,7 @@ class Spectrum:
         
         ############## Create full line list object #############
         
-        loc = 'Line_lists/'
+        loc = 'Line_lists\\'
         Kr = io.ascii.read(loc + 'Kr.ascii')
         Ar = io.ascii.read(loc + 'Ar.ascii')
         Ne = io.ascii.read(loc + 'Ne.ascii')
@@ -151,6 +223,8 @@ class Spectrum:
         # Filter the lines by wavelength
         lines=selected_lines[(selected_lines['Wavelength(Ã…)']/10>self.truth.wav_min) & (selected_lines['Wavelength(Ã…)']/10<self.truth.wav_max)] # /10 to account for angstroms
         
+        lines['Intensity'] = Column(lines['Intensity'].astype(np.float64), name='Intensity')
+        
         # set the relative scaling factors
         if len(elements) > 1:
             rel_scaling = self.rel_ints[lamp]
@@ -165,10 +239,18 @@ class Spectrum:
                     
         # apply the global scaling based on max_counts
         global_scaling = max_counts/np.max(lines['Intensity'])
-        lines['Intensity'] *= int(global_scaling)
-        
+        lines['Intensity'] *= global_scaling
+                    
         #order the lines in the table by wavelength
         lines.sort('Wavelength(Ã…)')
+        
+        # round intensity values to the nearest integer
+        lines['Intensity'] = np.rint(lines['Intensity'])
+
+        # make simplified table of lines, and change wavelength unit to nanometres
+        lines = lines[['Intensity', 'Wavelength(Ã…)', 'Element']].copy()
+        lines['Wavelength(Ã…)'] = lines['Wavelength(Ã…)']/10
+        lines.rename_column('Wavelength(Ã…)', 'Wavelength (nm)')
         
         # Plot the chosen lines
         
@@ -204,11 +286,12 @@ class Spectrum:
                   color='pink' 
                   lab='Th'
                   
-               plt.plot([line['Wavelength(Ã…)']/10,line['Wavelength(Ã…)']/10],[0,line['Intensity']],color=color,label=lab)
+               plt.plot([line['Wavelength (nm)'],line['Wavelength (nm)']],[0,line['Intensity']],color=color,label=lab)
                
             handles, labels = plt.gca().get_legend_handles_labels()
             unique = dict(zip(labels, handles))
             plt.legend(unique.values(), unique.keys())
+            plt.show()
             
         return lines
           
@@ -222,7 +305,7 @@ class Spectrum:
         Parameters
         ------------
         lines : list, astropy table
-            The lines for the lamp or lamps you wish to use. These are astropy tables produced using the lamp_builder function. 
+            The lines for the lamp or lamps you wish to use. These are astropy tables produced using the lamp_builder function or provided by the user. 
             A list of astropy tables for different lamps can be provided (to enable the use of multiple lamps at once) or a single table for one lamp.
         photon_noise : bool
             The user can set if they want poisson photon noise to be applied to their spectrum. The default is False.
@@ -244,11 +327,14 @@ class Spectrum:
         # combine lines from different lamps
         if type(lines) is list:   
             self.lines = vstack(lines)
-            self.lines.sort('Wavelength(Ã…)')
+            self.lines.sort('Wavelength (nm)')
             
         else:
             self.lines = lines
-            self.lines.sort('Wavelength(Ã…)')
+            self.lines.sort('Wavelength (nm)')
+            
+        # check the filtering of lines in the event of a user inputted lamp being used
+        self.lines=self.lines[(self.lines['Wavelength (nm)']>self.truth.wav_min) & (self.lines['Wavelength (nm)']<self.truth.wav_max)]
             
         # Create the pixel grid for your spectrum
         
@@ -271,7 +357,7 @@ class Spectrum:
             
             # generate gaussian for each line
             gaussian=Gaussian1D(amplitude = line['Intensity'],
-                                mean      = self.truth.wav2pix(line['Wavelength(Ã…)']/10)*(len(self.pix)-1)/(len(self.truth.pix)-1), #np.interp(line['Wavelength(Ã…)']/10,pix_wl,self.pix),
+                                mean      = self.truth.wav2pix(line['Wavelength (nm)'])*(len(self.pix)-1)/(len(self.truth.pix)-1), #np.interp(line['Wavelength (nm)'],pix_wl,self.pix),
                                 stddev    = self.sampling/2.355) # 2.355 converts between gaussian fwhm and std dev
             
             y_lines=y_lines+gaussian(self.pix)
@@ -347,6 +433,9 @@ class Spectrum:
         # combine lines from different sources if provided with a list of lamps
         if type(lines) is list:   
             lines = vstack(lines)
+            
+        # check the filtering of lines in the event of a user inputted lamp being used
+        lines=lines[(lines['Wavelength (nm)']>self.truth.wav_min) & (lines['Wavelength (nm)']<self.truth.wav_max)]
         
         plt.figure()
         plt.xlim(self.truth.wav_min,self.truth.wav_max)
@@ -375,12 +464,16 @@ class Spectrum:
            elif line['Element'] == 'Th':
               color='pink' 
               lab='Th'
+           elif line['Element'] == 'Ce':
+               color='deepskyblue'
+               lab='Ce'
               
-           plt.plot([line['Wavelength(Ã…)']/10,line['Wavelength(Ã…)']/10],[0,line['Intensity']],color=color,label=lab)
+           plt.plot([line['Wavelength (nm)'],line['Wavelength (nm)']],[0,line['Intensity']],color=color,label=lab)
            
         handles, labels = plt.gca().get_legend_handles_labels()
         unique = dict(zip(labels, handles))
         plt.legend(unique.values(), unique.keys())
+        plt.show()
         
         
         

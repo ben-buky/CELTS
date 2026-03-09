@@ -23,7 +23,7 @@ truth2 = Truth(wav_min=1450, wav_max=1700)
 
 # Use a Th-Ar lamp and a Ne lamp on the stored truth, with a low resolution so you see linewidth
 
-spectrum_test = Spectrum(truth=truth, resolution=1000, sampling=2,rel_ints=None,scaling_unit='peak_counts') # initialise class by specifying truth to use plus resolution and sampling
+spectrum_test = Spectrum(truth=truth, resolution=1000, sampling=2,rel_ints=None) # initialise class by specifying truth to use plus resolution and sampling
 
 # build desired lamps, can be pencil or hollow cathode lamp
 lamp_ne = spectrum_test.lamp_builder(lamp='Ne',max_counts=50000,user_ints=None,plot=True)
@@ -37,9 +37,35 @@ spectrum_test.generate_spectra(lines=[lamp_ne,lamp_thar], photon_noise=True, rea
 
 
 # Use a Th-Ar lamp on the stored truth with a higher readout noise and resolution
-spectrum_thar = Spectrum(truth=truth, resolution=4000, sampling=2)
+spectrum_thar = Spectrum(truth=truth, resolution=1000, sampling=2)
 lamp_thar = spectrum_thar.lamp_builder(lamp='ThAr',max_counts=50000)
 spectrum_thar.generate_spectra(lines=lamp_thar, photon_noise=True, readout_noise=15)
+
+#%% Investigate using pre-stored lamp
+
+spectrum_stored = Spectrum(truth=truth, resolution=1000, sampling=2,rel_ints=None)
+
+stored_cene = spectrum_stored.load_stored_lamp(lamp='CeNe',max_counts=50000,plot=True)
+spectrum_stored.generate_spectra(lines=stored_cene, photon_noise=True, readout_noise=15)
+
+#%% Investigate using user inputted lamp data
+
+from astropy.io import fits
+
+ints = fits.open("C:\\Users\\tsl29789\\OneDrive - Science and Technology Facilities Council\\Documents\\WaveCal_CFI\\new_linelists_from_Jay\\UNe_HCL\\une_spec.fits")
+wavs = fits.open("C:\\Users\\tsl29789\\OneDrive - Science and Technology Facilities Council\\Documents\\WaveCal_CFI\\new_linelists_from_Jay\\UNe_HCL\\une_wave.fits")
+
+plt.figure()
+plt.plot(wavs[0].data, ints[0].data)
+plt.show()
+
+from astropy.table import Table
+
+user_thar = Table.read("C:\\Users\\tsl29789\\OneDrive - Science and Technology Facilities Council\\Documents\\WaveCal_CFI\\CELTS\\Line_lists\\ThAr.csv")
+
+spectrum_user_thar = Spectrum(truth=truth, resolution=1000, sampling=2)
+spectrum_user_thar.line_plotter([user_thar])
+spectrum_user_thar.generate_spectra(lines=user_thar, photon_noise=True, readout_noise=10, seed=None, plot=True)
 
 #%% Investigate Calibration class
 
@@ -93,8 +119,7 @@ spec_lawrence = Spectrum(truth            = truth,          # Provide truth
                          resolution       = 3000,
                          sampling         = 2,              # Nyquist sampling by default
                          global_scaling   = 50000,          # 50,000 counts is the maximum amplitude of a line
-                         rel_ints         = None,           # use the saved lamp conversions by default
-                         scaling_unit     = 'max_counts')   # the global scaling unit is the amplitude/maximum number of counts by default
+                         rel_ints         = None)           # use the saved lamp conversions by default
 
 # Choose your lamp
 

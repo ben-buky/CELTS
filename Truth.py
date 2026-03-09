@@ -49,11 +49,11 @@ class Truth:
             # Load the stored Legendre fits. The wav2pix fit has a mean absolute residual <1% of a pixel, and maximum residual <5% of a pixel. 
             
             # load wav2pix mapping - this is used later for spectrum creation
-            with open('Truths/MOS_wav2pix.pkl', 'rb') as f:
+            with open('Truths\\MOS_wav2pix.pkl', 'rb') as f:
                 self.wav2pix = pickle.load(f)
             
             # load pix2wav mapping - this is used to generate our truth data
-            with open('Truths/MOS_pix2wav.pkl', 'rb') as f:
+            with open('Truths\\MOS_pix2wav.pkl', 'rb') as f:
                 pix2wav = pickle.load(f)
             
             # this is the hardcoded original number of pixels for the stored data

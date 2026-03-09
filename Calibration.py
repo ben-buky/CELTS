@@ -72,7 +72,7 @@ class Calibration:
             if line_fit == 'gaussian':
                 
                 amp = line['Intensity']*np.max(spectrum.calib_spec) # amplitude estimate based on brightest line in calibration spectrum
-                mean = truth.wav2pix(line['Wavelength(Ã…)']/10)*(len(spectrum.pix)-1)/(len(truth.pix)-1) # using truth fit to estimate where the lines will be in pixels
+                mean = truth.wav2pix(line['Wavelength (nm)'])*(len(spectrum.pix)-1)/(len(truth.pix)-1) # using truth fit to estimate where the lines will be in pixels
                 print('Centre of line = ' + str(round(mean,1)) + ' pix')
                 stddev = spectrum.sampling/2.355 
                 
@@ -90,7 +90,7 @@ class Calibration:
                     # record the estimated positions of each line
                     noisy_points.append(g.mean.value)
                     # record the known wavelength of that line
-                    wavelengths.append(line['Wavelength(Ã…)']/10)
+                    wavelengths.append(line['Wavelength (nm)'])
                 
                     if plot is True:
                         plt.figure()
