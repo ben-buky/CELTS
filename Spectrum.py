@@ -394,7 +394,7 @@ class Spectrum:
         readout = rng.normal(0,readout_noise,self.ideal_spectrum.shape)
         
         # New spectrum
-        self.calib_spec = phot + readout
+        self.calib_spec = phot + abs(readout)
 
         # Interpolate so we have correct number of data points for pixels
         #self.calib_spec = np.interp(self.truth.pix,self.line_pix,noisy_data_full)

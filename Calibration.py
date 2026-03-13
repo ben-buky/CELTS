@@ -13,7 +13,7 @@ import numpy as np
 
 class Calibration:
     
-    def __init__(self,truth,spectrum,orders=5,line_fit='gaussian',amp_cutoff=100,sttdev_cutoff=20,plot=True):
+    def __init__(self,truth,spectrum,orders=5,line_fit='gaussian',amp_cutoff=100,sttdev_cutoff=20,plot=True,filter_lines=False,print_line_fit_data=True):
         
         """ Calibration Class
         
@@ -39,6 +39,8 @@ class Calibration:
             The default is 50 % meaning if the calculated standard deviation is within +/- 50% of the expected value, the line is kept. 
         plot : bool
             The user can set if they want to automatically receive plots and analysis of their line fitting and final calibration. The default is True.
+        filter_lines : bool
+            Allows the user to limit the number of lines the code attempts to fit by only considering those with an intensity more than 2x the amplitude cutoff.
         
         Returns
         ------------
@@ -64,8 +66,14 @@ class Calibration:
         true_points = []
         noisy_points = []
         wavelengths = []
+        
+        # filter lines so fitting is only attempted for those with a chance of having a high enough amplitude
+        if filter_lines:
+            final_lines = spectrum.lines[ spectrum.lines['Intensity'] > 2*amp_cutoff ]
+        else:
+            final_lines = spectrum.lines
 
-        for line in spectrum.lines:
+        for line in final_lines:
             
             # can choose type of fitting to do using line_fit - ADD THIS CAPABILITY
             
@@ -73,14 +81,16 @@ class Calibration:
                 
                 amp = line['Intensity']*np.max(spectrum.calib_spec) # amplitude estimate based on brightest line in calibration spectrum
                 mean = truth.wav2pix(line['Wavelength (nm)'])*(len(spectrum.pix)-1)/(len(truth.pix)-1) # using truth fit to estimate where the lines will be in pixels
-                print('Centre of line = ' + str(round(mean,1)) + ' pix')
+                if print_line_fit_data:
+                    print('Centre of line = ' + str(round(mean,1)) + ' pix')
                 stddev = spectrum.sampling/2.355 
                 
                 g_init = Gaussian1D(amplitude=amp,mean=mean,stddev=stddev)
                 fit_g = fitting.TRFLSQFitter()
                 g = fit_g(g_init,spectrum.pix,spectrum.calib_spec)
                 
-                print([g.amplitude.value,g.stddev.value])
+                if print_line_fit_data:
+                    print([g.amplitude.value,g.stddev.value])
                 
                 # apply amplitude and sttdev cutoffs to determine which lines to use
                 if g.amplitude.value > amp_cutoff and stddev*s_min < g.stddev.value < stddev*s_max:
@@ -175,6 +185,7 @@ class Calibration:
             
             self.calib_fit = np.zeros((len(orders),len(spectrum.pix)))
             self.resids_wav = np.zeros((len(orders),len(spectrum.pix)))
+            self.truth_4_pix_resids = np.zeros((len(orders),len(spectrum.pix)))
             self.resids_pix = np.zeros((len(orders),len(spectrum.pix)))
             self.calib_fit_func = []
             self.resids_wav_means = np.zeros(len(orders))
@@ -206,8 +217,8 @@ class Calibration:
                 self.resids_wav_means[i] = np.mean(abs(self.resids_wav[i]))
                 
                 # interpolate to compute pixel residuals
-                truth_4_pix_resids = np.interp(self.calib_fit[i],truth.wav,scale_truth) # find the pixel values at the wavelength points in the fit
-                self.resids_pix[i] = spectrum.pix - truth_4_pix_resids # record the pixel residual
+                self.truth_4_pix_resids[i] = np.interp(self.calib_fit[i],truth.wav,scale_truth) # find the pixel values at the wavelength points in the fit
+                self.resids_pix[i] = spectrum.pix - self.truth_4_pix_resids[i] # record the pixel residual
                 self.resids_pix_means[i] = np.mean(abs(self.resids_pix[i]))
                 
                 if plot is True:

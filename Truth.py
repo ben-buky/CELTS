@@ -12,7 +12,7 @@ import pickle
 
 class Truth:
     
-    def __init__(self, wav_min=1418, wav_max=1836, truth_data=None, fit_quality=0.01, plot=True):
+    def __init__(self, wav_min=1418, wav_max=1836, truth_data=None, fit_quality=0.01, plot=True, interp_truth=True):
         
         """ Truth Class
         
@@ -30,7 +30,7 @@ class Truth:
         truth_data : 2D array
             The user defined true wavelength calibration solution in the form [lambda (nm), pix]. The default is None, meaning the pre-loaded solution is used.
         fit_quality : float
-            The desired mean of the absolute residuals for the fit to a user defined truth, in pixels. The order of the polynomial will be increased until this is met. The default is 0.01 (1%).
+            The desired maximum absolute residual for the fit to a user defined truth, in pixels. The order of the polynomial will be increased until this is met. The default is 0.01 (1%).
         plot : bool
             The user can set if they want to automatically receive a plot of their truth. The default is True.
             
@@ -75,22 +75,18 @@ class Truth:
             
             # if user specifies their own truth, save this in the same format and generate wav2pix mapping
             
-            self.wav = truth_data[0]
-            self.pix = truth_data[1]
-            
-            # we assume user has desired wavelengths already if using their own truth
-            self.wav_min = self.wav[0]
-            self.wav_max = self.wav[-1]
+            wav = truth_data[0]
+            pix = truth_data[1]
             
             # generate legendre fit to truth, with order and quality specified by fit_quality
             i = 1
             while True:
                 
-                fit = Legendre.fit(self.wav,self.pix,deg=i)
-                y = fit(self.wav)
-                resids_mean = np.mean(abs(y-self.pix))
+                fit = Legendre.fit(wav,pix,deg=i)
+                y = fit(wav)
+                resids_max = np.max(abs(y-pix))
                 
-                if resids_mean < fit_quality:
+                if resids_max < fit_quality:
                     break
                 else:
                     i += 1
@@ -100,6 +96,48 @@ class Truth:
             self.wav2pix = fit
             
             print('Wavelength to pixel truth fit = ' + str(self.wav2pix))
+            
+            # Find a pix2wav fit and use this to create an integer pixel grid of truth data
+            if interp_truth:
+                
+                # use the same order as found above
+                fit = Legendre.fit(pix,wav,deg=i)
+                self.pix2wav = fit
+                
+                # test the fit by converting pixels to wavelength and using wav2pix to convert back to pixels
+                w = self.pix2wav(pix)
+                p = self.wav2pix(w)
+                res_max = np.max(abs(p-pix))
+                
+                if res_max > fit_quality:
+                    print('Max residual exceeds target fit quality value: ' + str(res_max) + ' > ' + str(fit_quality))
+                    raise ValueError('Pixel to wavelength function failed quality check! Consider having a finer sampling in your truth input or relax your fit quality requirement.')
+                else:
+                    print('Pix2wav quality check passed! Max residual within target fit quality value: ' + str(res_max) + ' < ' + str(fit_quality))
+                 
+                # calculate the total number of pixels across the detector
+                n_pix = round(abs(pix[0]) + abs(pix[-1]))
+            
+                # generate pixel and wavelength truth arrays using pix2wav function
+                self.pix = np.arange(round(pix[0]), round(pix[0])+n_pix)
+                self.wav = self.pix2wav(self.pix)
+            
+            # option for not interpolating truth input
+            else:
+                self.wav = truth_data[0]
+                self.pix = truth_data[1]
+                
+            # we assume user has desired wavelengths already if using their own truth
+            self.wav_min = self.wav[0]
+            self.wav_max = self.wav[-1]
+            
+            # put flag here
+            # find pix2wav fit of order i 
+            # do quality check (convert from pix to wav, then back to pix, check against original error limit), have print statement if there's an issue
+            # find n_pix by doing int(abs(self.pix[0]) + abs(self.pix[-1])), this should give total number of pixels needed irrespective of whether dispersion relation pixel array starts from 0 or a negative number
+            # create new pixel array running from 0 to n_pix
+            # use pix2wav to gather corresponding wavelength values
+            
             
         if plot is True:
             
