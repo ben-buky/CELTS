@@ -69,7 +69,7 @@ class Calibration:
         
         # filter lines so fitting is only attempted for those with a chance of having a high enough amplitude
         if filter_lines:
-            final_lines = spectrum.lines[ spectrum.lines['Intensity'] > 2*amp_cutoff ]
+            final_lines = spectrum.lines[ spectrum.lines['Intensity'] > amp_cutoff/2 ]
         else:
             final_lines = spectrum.lines
 
